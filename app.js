@@ -1,4 +1,16 @@
 const STORAGE_KEY = "regionManagerApp.v1";
+const CLOUD_TABLE = "region_app_state";
+const CLOUD_CONFIG = window.REGION_APP_SUPABASE || {};
+const hasCloudConfig = Boolean(
+  window.supabase &&
+    CLOUD_CONFIG.url &&
+    CLOUD_CONFIG.anonKey &&
+    !CLOUD_CONFIG.url.includes("YOUR_") &&
+    !CLOUD_CONFIG.anonKey.includes("YOUR_"),
+);
+const supabaseClient = hasCloudConfig
+  ? window.supabase.createClient(CLOUD_CONFIG.url, CLOUD_CONFIG.anonKey)
+  : null;
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const addDays = (days) => {
@@ -59,6 +71,9 @@ const seedState = {
 };
 
 let state = loadState();
+let currentUser = null;
+let syncTimer = null;
+let isSavingCloud = false;
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
@@ -78,7 +93,7 @@ function loadState() {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) return structuredClone(seedState);
   try {
-    return JSON.parse(raw);
+    return normalizeState(JSON.parse(raw));
   } catch {
     return structuredClone(seedState);
   }
@@ -86,6 +101,19 @@ function loadState() {
 
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function normalizeState(value) {
+  return {
+    members: Array.isArray(value?.members) ? value.members : [],
+    messages: Array.isArray(value?.messages) ? value.messages : [],
+    reports: Array.isArray(value?.reports) ? value.reports : [],
+  };
+}
+
+function persistState() {
+  saveState();
+  queueCloudSave();
 }
 
 function emptyNode(title, body) {
@@ -106,13 +134,13 @@ function statusChip(status) {
   return "chip";
 }
 
-function render() {
+function render(options = {}) {
   renderDashboard();
   renderPeople();
   renderMessages();
   renderReports();
   renderReportSelect();
-  saveState();
+  if (options.persist !== false) persistState();
 }
 
 function renderDashboard() {
@@ -349,6 +377,130 @@ function makeCalendar() {
   download("region-report-reminders.ics", lines.join("\r\n"), "text/calendar;charset=utf-8");
 }
 
+function setSyncStatus(message, tone = "") {
+  const status = $("#syncStatus");
+  if (!status) return;
+  status.textContent = message;
+  status.className = `sync-status ${tone}`.trim();
+}
+
+function setAuthUi() {
+  const authForm = $("#authForm");
+  const signedInActions = $("#signedInActions");
+  const email = $("#signedInEmail");
+
+  if (!hasCloudConfig) {
+    authForm.hidden = false;
+    signedInActions.hidden = true;
+    setSyncStatus("Supabase 설정 전입니다. supabase-config.js에 URL과 anon key를 넣으세요.", "warning");
+    return;
+  }
+
+  authForm.hidden = Boolean(currentUser);
+  signedInActions.hidden = !currentUser;
+  email.textContent = currentUser ? `${currentUser.email} 계정으로 동기화 중` : "";
+
+  if (currentUser) {
+    setSyncStatus("로그인됨. 이 계정으로 아이폰과 노트북 데이터가 동기화됩니다.", "good");
+  } else {
+    setSyncStatus("로그인하면 같은 계정의 기기끼리 데이터가 공유됩니다.", "warning");
+  }
+}
+
+function queueCloudSave() {
+  if (!supabaseClient || !currentUser || isSavingCloud) return;
+  window.clearTimeout(syncTimer);
+  syncTimer = window.setTimeout(saveCloudState, 700);
+}
+
+async function saveCloudState() {
+  if (!supabaseClient || !currentUser) return;
+  isSavingCloud = true;
+  setSyncStatus("클라우드에 저장 중", "warning");
+  const { error } = await supabaseClient.from(CLOUD_TABLE).upsert({
+    user_id: currentUser.id,
+    payload: state,
+    updated_at: new Date().toISOString(),
+  });
+  isSavingCloud = false;
+
+  if (error) {
+    setSyncStatus(`동기화 실패: ${error.message}`, "danger");
+    return;
+  }
+  setSyncStatus("클라우드 저장 완료", "good");
+}
+
+async function loadCloudState() {
+  if (!supabaseClient || !currentUser) return;
+  setSyncStatus("클라우드 데이터 불러오는 중", "warning");
+  const { data, error } = await supabaseClient
+    .from(CLOUD_TABLE)
+    .select("payload")
+    .eq("user_id", currentUser.id)
+    .maybeSingle();
+
+  if (error) {
+    setSyncStatus(`불러오기 실패: ${error.message}`, "danger");
+    return;
+  }
+
+  if (data?.payload) {
+    state = normalizeState(data.payload);
+    saveState();
+    render({ persist: false });
+    setSyncStatus("클라우드 데이터 불러오기 완료", "good");
+    return;
+  }
+
+  await saveCloudState();
+}
+
+async function signInWithPassword(email, password) {
+  const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+  if (error) setSyncStatus(`로그인 실패: ${error.message}`, "danger");
+}
+
+async function signUpWithPassword(email, password) {
+  const { error } = await supabaseClient.auth.signUp({ email, password });
+  if (error) {
+    setSyncStatus(`가입 실패: ${error.message}`, "danger");
+    return;
+  }
+  setSyncStatus("가입 요청 완료. 이메일 확인이 필요할 수 있습니다.", "good");
+}
+
+async function signOut() {
+  const { error } = await supabaseClient.auth.signOut();
+  if (error) {
+    setSyncStatus(`로그아웃 실패: ${error.message}`, "danger");
+    return;
+  }
+  currentUser = null;
+  setAuthUi();
+}
+
+async function initCloudSync() {
+  setAuthUi();
+  if (!supabaseClient) return;
+
+  const { data, error } = await supabaseClient.auth.getSession();
+  if (error) {
+    setSyncStatus(`세션 확인 실패: ${error.message}`, "danger");
+    return;
+  }
+
+  currentUser = data.session?.user || null;
+  setAuthUi();
+  if (currentUser) await loadCloudState();
+
+  supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+    currentUser = session?.user || null;
+    setAuthUi();
+    if (currentUser) await loadCloudState();
+  });
+}
+
 function bindEvents() {
   $$(".tab").forEach((tab) => tab.addEventListener("click", () => openTab(tab.dataset.tab)));
   $$("[data-open-tab]").forEach((button) =>
@@ -411,6 +563,50 @@ function bindEvents() {
   });
 
   $("#makeCalendar").addEventListener("click", makeCalendar);
+
+  $("#authForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!supabaseClient) {
+      setSyncStatus("Supabase 설정이 아직 없습니다.", "warning");
+      return;
+    }
+    const data = Object.fromEntries(new FormData(event.currentTarget));
+    await signInWithPassword(data.email, data.password);
+  });
+
+  $("#signUpButton").addEventListener("click", async () => {
+    if (!supabaseClient) {
+      setSyncStatus("Supabase 설정이 아직 없습니다.", "warning");
+      return;
+    }
+    const data = Object.fromEntries(new FormData($("#authForm")));
+    if (!data.email || !data.password) {
+      setSyncStatus("이메일과 비밀번호를 입력하세요.", "warning");
+      return;
+    }
+    await signUpWithPassword(data.email, data.password);
+  });
+
+  $("#signOutButton").addEventListener("click", signOut);
+  $("#syncNow").addEventListener("click", async () => {
+    if (!supabaseClient) {
+      setSyncStatus("Supabase 설정이 아직 없습니다.", "warning");
+      return;
+    }
+    if (!currentUser) {
+      setSyncStatus("먼저 로그인하세요.", "warning");
+      return;
+    }
+    await loadCloudState();
+  });
+
+  $("#uploadLocalData").addEventListener("click", async () => {
+    if (!currentUser) {
+      setSyncStatus("먼저 로그인하세요.", "warning");
+      return;
+    }
+    await saveCloudState();
+  });
 }
 
 if ("serviceWorker" in navigator) {
@@ -421,3 +617,4 @@ $("#memberForm").dueDate.value = addDays(7);
 $("#reportForm").date.value = todayIso();
 bindEvents();
 render();
+initCloudSync();

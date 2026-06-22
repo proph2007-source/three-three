@@ -10,6 +10,7 @@
 - 구역별 보고 통계와 3일 이내 보고 알림
 - 전체 데이터 JSON 내보내기
 - 보고 예정일 캘린더 파일(`.ics`) 내보내기
+- Supabase 로그인 기반 아이폰/노트북 데이터 동기화
 
 ## 실행
 
@@ -29,6 +30,16 @@ python -m http.server 8080
 3. `홈 화면에 추가`를 선택합니다.
 
 데이터는 현재 브라우저에 저장됩니다. 기기를 바꾸기 전에는 JSON 내보내기를 사용해 백업하세요.
+
+## 공유 데이터베이스 설정
+
+1. Supabase 프로젝트를 만듭니다.
+2. Supabase SQL Editor에서 `supabase-schema.sql` 내용을 실행합니다.
+3. `supabase-config.example.js`를 참고해 `supabase-config.js`에 Project URL과 anon public key를 입력합니다.
+4. 앱을 다시 배포합니다.
+5. 아이폰과 노트북에서 같은 이메일 계정으로 로그인합니다.
+
+설정 전에는 기존처럼 각 기기 브라우저 안에만 저장됩니다.
 
 ## 밖에서 접속
 

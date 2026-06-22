@@ -30,7 +30,17 @@ Build output directory: mobile_app
 
 ## 중요한 점
 
-- 앱 데이터는 서버가 아니라 각 기기의 브라우저 저장소에 저장됩니다.
-- PC와 아이폰 데이터는 자동 동기화되지 않습니다.
-- 기기를 바꾸거나 브라우저 데이터를 지우기 전에는 앱 우상단 내보내기 버튼으로 JSON 백업을 저장하세요.
+- Supabase 설정 전에는 앱 데이터가 각 기기의 브라우저 저장소에 저장됩니다.
+- Supabase 설정 후 같은 이메일 계정으로 로그인하면 아이폰과 노트북에서 같은 데이터를 볼 수 있습니다.
+- 기기를 바꾸거나 브라우저 데이터를 지우기 전에는 앱 우상단 내보내기 버튼으로 JSON 백업을 저장하는 것이 좋습니다.
 - 배포 주소를 아는 사람은 앱 화면에 접속할 수 있습니다. 실제 보고 데이터는 접속한 기기 안에 저장되지만, 주소 공유는 신중히 하세요.
+
+## Supabase 동기화 설정
+
+1. Supabase에서 새 프로젝트를 만듭니다.
+2. `SQL Editor`에서 `mobile_app/supabase-schema.sql` 내용을 실행합니다.
+3. `Project Settings > Data API` 또는 `API` 화면에서 Project URL과 anon public key를 확인합니다.
+4. `mobile_app/supabase-config.js`에 값을 넣습니다.
+5. GitHub에 다시 업로드하거나 Pages에 재배포합니다.
+
+`anon` key는 앱에 들어가는 공개 키입니다. 보안은 이 키를 숨기는 방식이 아니라 `supabase-schema.sql`에 들어 있는 Row Level Security 정책으로 지킵니다.

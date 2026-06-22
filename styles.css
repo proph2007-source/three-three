@@ -225,6 +225,66 @@ textarea:focus {
   font-weight: 800;
 }
 
+.secondary-button {
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-strong);
+  color: var(--green-deep);
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.sync-panel {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.sync-status {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.sync-status.good {
+  color: var(--green-deep);
+  font-weight: 800;
+}
+
+.sync-status.warning {
+  color: #8f5d08;
+  font-weight: 800;
+}
+
+.sync-status.danger {
+  color: var(--red);
+  font-weight: 800;
+}
+
+.auth-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.button-row,
+.signed-in-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.signed-in-actions {
+  margin-top: 12px;
+}
+
+.signed-in-actions span {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
 .toolbar {
   position: sticky;
   top: 0;
