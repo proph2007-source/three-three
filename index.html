@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#f6f2ea" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="지역원 관리" />
+    <title>지역원 관리</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">지역원 관리</p>
+          <h1>보고와 전달을 한곳에</h1>
+        </div>
+        <button class="icon-button" id="exportData" type="button" aria-label="데이터 내보내기" title="데이터 내보내기">
+          <span aria-hidden="true">↓</span>
+        </button>
+      </header>
+
+      <main>
+        <section class="view active" id="dashboardView" aria-labelledby="dashboardTab">
+          <div class="summary-grid">
+            <article class="metric">
+              <span>전체 구역원</span>
+              <strong id="memberCount">0</strong>
+            </article>
+            <article class="metric">
+              <span>이번 달 보고</span>
+              <strong id="monthlyReportCount">0</strong>
+            </article>
+            <article class="metric wide">
+              <span>다가오는 보고일</span>
+              <strong id="nextDueDate">-</strong>
+            </article>
+          </div>
+
+          <section class="panel">
+            <div class="section-title">
+              <h2>오늘 확인할 일</h2>
+              <button class="text-button" id="makeCalendar" type="button">캘린더</button>
+            </div>
+            <div class="reminder-list" id="reminderList"></div>
+          </section>
+
+          <section class="panel">
+            <div class="section-title">
+              <h2>최근 Signal 내용</h2>
+              <button class="text-button" data-open-tab="messages" type="button">전체</button>
+            </div>
+            <div class="message-stack" id="recentMessages"></div>
+          </section>
+
+          <section class="panel">
+            <div class="section-title">
+              <h2>보고 통계</h2>
+              <span class="quiet" id="analyticsRange">최근 30일</span>
+            </div>
+            <div class="bar-list" id="analyticsBars"></div>
+          </section>
+        </section>
+
+        <section class="view" id="peopleView" aria-labelledby="peopleTab">
+          <section class="panel form-panel">
+            <h2>조직 편성</h2>
+            <form id="memberForm" class="stack-form">
+              <label>
+                이름
+                <input name="name" required autocomplete="name" placeholder="예: 김민수" />
+              </label>
+              <label>
+                역할
+                <select name="role" required>
+                  <option value="지역장">지역장</option>
+                  <option value="구역장">구역장</option>
+                  <option value="구역원" selected>구역원</option>
+                </select>
+              </label>
+              <label>
+                소속 구역
+                <input name="zone" required placeholder="예: 1구역" />
+              </label>
+              <label>
+                보고 예정일
+                <input name="dueDate" type="date" required />
+              </label>
+              <label>
+                연락/메모
+                <input name="note" placeholder="연락처, 특이사항 등" />
+              </label>
+              <button class="primary-button" type="submit">구역원 추가</button>
+            </form>
+          </section>
+          <div class="toolbar">
+            <input id="peopleSearch" type="search" placeholder="이름, 역할, 구역 검색" />
+          </div>
+          <div class="people-list" id="peopleList"></div>
+        </section>
+
+        <section class="view" id="messagesView" aria-labelledby="messagesTab">
+          <section class="panel form-panel">
+            <h2>Signal 전달 내용 저장</h2>
+            <form id="messageForm" class="stack-form">
+              <label>
+                제목
+                <input name="title" required placeholder="예: 6월 봉사 일정" />
+              </label>
+              <label>
+                구분
+                <select name="type">
+                  <option>전달</option>
+                  <option>공지</option>
+                  <option>요청</option>
+                  <option>보고</option>
+                </select>
+              </label>
+              <label>
+                관련 구역
+                <input name="zone" placeholder="전체 또는 1구역" />
+              </label>
+              <label>
+                Signal 내용 붙여넣기
+                <textarea name="body" rows="5" required placeholder="Signal에서 받은 내용을 여기에 붙여넣으세요."></textarea>
+              </label>
+              <button class="primary-button" type="submit">내용 저장</button>
+            </form>
+          </section>
+          <div class="toolbar">
+            <input id="messageSearch" type="search" placeholder="전달 내용 검색" />
+            <select id="messageTypeFilter" aria-label="구분 필터">
+              <option value="">전체</option>
+              <option>전달</option>
+              <option>공지</option>
+              <option>요청</option>
+              <option>보고</option>
+            </select>
+          </div>
+          <div class="message-stack" id="messageList"></div>
+        </section>
+
+        <section class="view" id="reportsView" aria-labelledby="reportsTab">
+          <section class="panel form-panel">
+            <h2>보고 입력</h2>
+            <form id="reportForm" class="stack-form">
+              <label>
+                보고자
+                <select name="memberId" id="reportMemberSelect" required></select>
+              </label>
+              <label>
+                보고일
+                <input name="date" type="date" required />
+              </label>
+              <label>
+                상태
+                <select name="status">
+                  <option>완료</option>
+                  <option>확인 필요</option>
+                  <option>미보고</option>
+                </select>
+              </label>
+              <label>
+                보고 내용
+                <textarea name="body" rows="4" required placeholder="보고 내용, 조치 필요사항, 후속 일정"></textarea>
+              </label>
+              <button class="primary-button" type="submit">보고 저장</button>
+            </form>
+          </section>
+          <div class="toolbar">
+            <input id="reportSearch" type="search" placeholder="보고 내용 조회" />
+            <select id="reportStatusFilter" aria-label="상태 필터">
+              <option value="">전체</option>
+              <option>완료</option>
+              <option>확인 필요</option>
+              <option>미보고</option>
+            </select>
+          </div>
+          <div class="report-list" id="reportList"></div>
+        </section>
+      </main>
+
+      <nav class="tabbar" aria-label="주요 화면">
+        <button class="tab active" id="dashboardTab" data-tab="dashboard" type="button">
+          <span aria-hidden="true">⌂</span>
+          홈
+        </button>
+        <button class="tab" id="peopleTab" data-tab="people" type="button">
+          <span aria-hidden="true">◇</span>
+          조직
+        </button>
+        <button class="tab" id="messagesTab" data-tab="messages" type="button">
+          <span aria-hidden="true">≡</span>
+          Signal
+        </button>
+        <button class="tab" id="reportsTab" data-tab="reports" type="button">
+          <span aria-hidden="true">✓</span>
+          보고
+        </button>
+      </nav>
+    </div>
+
+    <template id="emptyTemplate">
+      <div class="empty-state">
+        <strong></strong>
+        <p></p>
+      </div>
+    </template>
+
+    <script src="./app.js" type="module"></script>
+  </body>
+</html>

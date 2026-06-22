@@ -1,0 +1,17 @@
+{
+  "name": "지역원 관리",
+  "short_name": "지역관리",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f6f2ea",
+  "theme_color": "#2f6f55",
+  "description": "지역장, 구역장, 구역원 편성과 Signal 전달 내용 및 보고 기록을 관리하는 모바일 앱",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
